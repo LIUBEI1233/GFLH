@@ -15,9 +15,9 @@ def build():
     spec_file = os.path.join(mk_dir, 'pick_coin.spec')
     if not os.path.exists(spec_file):
         print("ERROR: pick_coin.spec not found in mk directory!")
-        return
+        sys.exit(1)
     
-    for d in ["dist", "build"]:
+    for d in [dist_dir, build_dir]:
         if os.path.exists(d):
             shutil.rmtree(d)
 

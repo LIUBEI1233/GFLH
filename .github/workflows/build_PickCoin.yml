@@ -28,10 +28,10 @@ jobs:
     name: Build Windows x86_64
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@f677139bbe7af94c3610951c3a1c9ef0c63a2c12
         with:
           python-version: '3.11'
 
@@ -80,7 +80,7 @@ jobs:
           done
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@01570a1f39cb16869b2ab4ef6583eb0b47fc47f7
         with:
           files: release_assets/*
           draft: false
