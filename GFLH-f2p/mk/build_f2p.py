@@ -31,7 +31,7 @@ def build():
     ]
     
     subprocess.run(pyinstaller_cmd, cwd=root_dir, check=True)
-    print("Build finished. Executable is in ./dist/F2PAuto/")
+    print("Build finished. Executable is in ./dist/GFLH-F2P/")
 
 if __name__ == "__main__":
     build()
