@@ -15,6 +15,7 @@ TARGET_BUILDINGS = {
 }
 
 def get_resource_path(relative_path):
+    """获取资源文件的绝对路径，支持 PyInstaller 打包和开发环境"""
     try:
         base_path = sys._MEIPASS
     except AttributeError:
@@ -26,27 +27,45 @@ class NightmareApp:
         self.root = root
         self.root.title("GFLH - 偷看涅托底裤")
         self.root.geometry("680x600")
-        icon_path = get_resource_path("mk/icon.ico")
-        if os.path.exists(icon_path):
-                try:
-                    self.root.iconbitmap(icon_path)
-                except Exception as e:
-                    print(f"Set icon failed: {e}")
-                else:
-                    print(f"Icon not found: {icon_path}")
+        
+        self._setup_icon()
 
         self.proxy_instance = None
         self.active_proxy = False
         self.monitor_thread = None
         self.stop_monitor_flag = False
+        self.is_closing = False  
 
-    
         self.var_port = tk.IntVar(value=8080)
         self.var_auto_stop = tk.BooleanVar(value=True)   
         self.var_debug = tk.BooleanVar(value=False)       
         self.setup_ui()
 
-   
+    def _setup_icon(self):
+        """设置窗口图标"""
+        possible_paths = [
+            get_resource_path("mk/icon.ico"),
+            get_resource_path("../mk/icon.ico"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "mk", "icon.ico"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mk", "icon.ico"),
+        ]
+        
+        possible_paths = list(dict.fromkeys(possible_paths))
+        
+        icon_loaded = False
+        for icon_path in possible_paths:
+            if os.path.exists(icon_path):
+                try:
+                    self.root.iconbitmap(icon_path)
+                    icon_loaded = True
+                    print(f"[INFO] 图标加载成功: {icon_path}")
+                    break
+                except Exception as e:
+                    print(f"[WARN] 加载图标失败 {icon_path}: {e}")
+        
+        if not icon_loaded:
+            print(f"[INFO] 未找到图标文件，使用默认窗口图标")
+
     def setup_ui(self):
         frame_ctrl = ttk.LabelFrame(self.root, text="1. 偷看状态", padding=10)
         frame_ctrl.pack(fill=tk.X, padx=10, pady=5)
@@ -82,33 +101,88 @@ class NightmareApp:
         )
         self.txt_log.pack(fill=tk.BOTH, expand=True)
 
-        
-        self.txt_log.tag_config("found" )
+        self.txt_log.tag_config("found")
         self.txt_log.tag_config("info")
         self.txt_log.tag_config("warn")
 
+    # ---------- 线程安全的 UI 操作 ----------
     def log(self, msg, tag=None):
+        """线程安全的日志输出"""
         try:
+            if self.is_closing:
+                return
             if self.root.winfo_exists():
                 self.root.after(0, self._append_log, msg, tag)
-        except tk.TclError:
+        except (tk.TclError, RuntimeError):
             pass
 
     def _append_log(self, msg, tag=None):
-        self.txt_log.config(state=tk.NORMAL)
-        if tag:
-            self.txt_log.insert(tk.END, msg + "\n", tag)
-        else:
-            self.txt_log.insert(tk.END, msg + "\n")
-        self.txt_log.see(tk.END)
-        self.txt_log.config(state=tk.DISABLED)
+        """在主线程中执行日志写入"""
+        if self.is_closing:
+            return
+        try:
+            if self.root.winfo_exists():
+                self.txt_log.config(state=tk.NORMAL)
+                if tag:
+                    self.txt_log.insert(tk.END, msg + "\n", tag)
+                else:
+                    self.txt_log.insert(tk.END, msg + "\n")
+                self.txt_log.see(tk.END)
+                self.txt_log.config(state=tk.DISABLED)
+        except (tk.TclError, RuntimeError):
+            pass
 
-   
+    def show_messagebox(self, title, message):
+        """线程安全的消息框显示"""
+        try:
+            if self.is_closing:
+                return
+            if self.root.winfo_exists():
+                self.root.after(0, self._show_messagebox_safe, title, message)
+        except (tk.TclError, RuntimeError):
+            pass
+
+    def _show_messagebox_safe(self, title, message):
+        """在主线程中执行消息框显示"""
+        if self.is_closing:
+            return
+        try:
+            if self.root.winfo_exists():
+                messagebox.showinfo(title, message)
+        except (tk.TclError, RuntimeError):
+            pass
+
+    def stop_monitor_safe(self):
+        """线程安全的停止监控调用"""
+        try:
+            if self.is_closing:
+                return
+            if self.root.winfo_exists():
+                self.root.after(0, self.stop_monitor)
+        except (tk.TclError, RuntimeError):
+            pass
+
+    # ---------- 核心回调 ----------
     def _traffic_callback(self, event_type, url, data):
+        """代理流量回调 - 在后台线程中运行"""
+        if self.is_closing:
+            return
+            
         if event_type.upper() != "S2C":
             return
 
-        if self.var_debug.get():
+        # 读取 Tkinter 变量需要线程安全
+        debug_mode = False
+        auto_stop = False
+        
+        try:
+            if not self.is_closing and self.root.winfo_exists():
+                debug_mode = self.var_debug.get()
+                auto_stop = self.var_auto_stop.get()
+        except (tk.TclError, RuntimeError):
+            return
+
+        if debug_mode:
             self.log(f"探测到信号: {url}", "info")
 
         if "Mission_startMission" not in url and "startMission" not in url:
@@ -120,7 +194,7 @@ class NightmareApp:
 
         building_info = data.get("building_info")
         
-        if self.var_debug.get():
+        if debug_mode:
             if building_info:
                 self.log(f"发现底裤: {json.dumps(building_info, ensure_ascii=False)}", "info")
             else:
@@ -143,13 +217,13 @@ class NightmareApp:
         if all_found and len(found_details) == len(TARGET_BUILDINGS):
             msg = f"白色！ " + ", ".join([f"{k}/{v}" for k, v in found_details.items()])
             self.log(msg, "found")
-            messagebox.showinfo("偷看到了！", f"涅托小姐今天的颜色！\n{msg}")
+            
+            self.show_messagebox("偷看到了！", f"涅托小姐今天的颜色！\n{msg}")
 
-            if self.var_auto_stop.get():
+            if auto_stop:
                 self.log("看够了，收工！自动停止偷看...", "info")
-                self.root.after(0, self.stop_monitor)
+                self.stop_monitor_safe()
         else:
-      
             spot_status = []
             for spot_id, expected_bid in TARGET_BUILDINGS.items():
                 spot_info = building_info.get(spot_id)
@@ -162,13 +236,12 @@ class NightmareApp:
                 else:
                     spot_status.append(f"{spot_id}->不存在 ✗")
             
-           
-            if self.var_debug.get():
+            if debug_mode:
                 self.log(f"今天穿的不是同一条... {', '.join(spot_status)}", "info")
             else:
                 self.log(f"捕获到 startMission，色号不匹配: {', '.join(spot_status)}", "info")
 
-
+    # ---------- 监控线程 ----------
     def monitor_worker(self):
         port = self.var_port.get()
         try:
@@ -180,23 +253,37 @@ class NightmareApp:
             self.log(f"[*] 目标色号: {TARGET_BUILDINGS}", "info")
             self.log("[*] 请进入游戏，等待涅托小姐出现...", "info")
 
-            while not self.stop_monitor_flag:
+            while not self.stop_monitor_flag and not self.is_closing:
                 time.sleep(0.5)
 
         except Exception as e:
             self.log(f"[Man!] 无人机坠毁了！: {e}", "warn")
         finally:
+            # ✅ 清理代理资源
             if self.proxy_instance:
                 try:
                     self.proxy_instance.stop()
-                except:
+                except Exception:
                     pass
                 self.proxy_instance = None
+                
             if self.active_proxy:
-                set_windows_proxy(False)
+                try:
+                    set_windows_proxy(False)
+                except Exception:
+                    pass
                 self.active_proxy = False
-            self.log("[*] 跑路，下次再看 ", "info")
-            self.root.after(0, self._reset_ui)
+                
+            # ✅ 只在窗口未关闭时才更新 UI
+            if not self.is_closing:
+                try:
+                    if self.root.winfo_exists():
+                        self.root.after(0, self._reset_ui)
+                except (tk.TclError, RuntimeError):
+                    pass
+            else:
+                # 窗口已关闭，直接清理线程引用
+                self.monitor_thread = None
 
     def start_monitor(self):
         if self.monitor_thread and self.monitor_thread.is_alive():
@@ -228,25 +315,49 @@ class NightmareApp:
         self.log("[*] 等等，再让我看一眼... 该跑路了！", "info")
 
     def _reset_ui(self):
+        """重置 UI 状态（必须在主线程调用）"""
+        if self.is_closing:
+            return
         try:
             if self.root.winfo_exists():
                 self.btn_start.config(state=tk.NORMAL)
                 self.btn_stop.config(state=tk.DISABLED)
                 self.lbl_status.config(text="● 偷看结束", foreground="gray")
                 self.monitor_thread = None
-        except tk.TclError:
+        except (tk.TclError, RuntimeError):
             pass
 
     def on_close(self):
+        """窗口关闭时的清理操作"""
+        # ✅ 标记窗口正在关闭，阻止所有后续 UI 操作
+        self.is_closing = True
         self.stop_monitor_flag = True
+        
+        # 停止代理
         if self.proxy_instance:
             try:
                 self.proxy_instance.stop()
-            except:
+            except Exception:
                 pass
+            self.proxy_instance = None
+            
+        # 恢复代理设置
         if self.active_proxy:
-            set_windows_proxy(False)
-        self.root.destroy()
+            try:
+                set_windows_proxy(False)
+            except Exception:
+                pass
+            self.active_proxy = False
+            
+        # 等待监控线程结束（最多2秒）
+        if self.monitor_thread and self.monitor_thread.is_alive():
+            self.monitor_thread.join(timeout=2.0)
+            
+        # 销毁窗口
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
 
 
 if __name__ == "__main__":
