@@ -15,7 +15,7 @@ TARGET_BUILDINGS = {
 }
 
 def get_resource_path(relative_path):
-    """获取资源文件的绝对路径，支持 PyInstaller 打包和开发环境"""
+   
     try:
         base_path = sys._MEIPASS
     except AttributeError:
@@ -42,7 +42,7 @@ class NightmareApp:
         self.setup_ui()
 
     def _setup_icon(self):
-        """设置窗口图标"""
+        
         possible_paths = [
             get_resource_path("mk/icon.ico"),
             get_resource_path("../mk/icon.ico"),
@@ -105,9 +105,9 @@ class NightmareApp:
         self.txt_log.tag_config("info")
         self.txt_log.tag_config("warn")
 
-    # ---------- 线程安全的 UI 操作 ----------
+   
     def log(self, msg, tag=None):
-        """线程安全的日志输出"""
+     
         try:
             if self.is_closing:
                 return
@@ -133,7 +133,7 @@ class NightmareApp:
             pass
 
     def show_messagebox(self, title, message):
-        """线程安全的消息框显示"""
+       
         try:
             if self.is_closing:
                 return
@@ -143,7 +143,7 @@ class NightmareApp:
             pass
 
     def _show_messagebox_safe(self, title, message):
-        """在主线程中执行消息框显示"""
+      
         if self.is_closing:
             return
         try:
@@ -162,16 +162,16 @@ class NightmareApp:
         except (tk.TclError, RuntimeError):
             pass
 
-    # ---------- 核心回调 ----------
+    
     def _traffic_callback(self, event_type, url, data):
-        """代理流量回调 - 在后台线程中运行"""
+     
         if self.is_closing:
             return
             
         if event_type.upper() != "S2C":
             return
 
-        # 读取 Tkinter 变量需要线程安全
+      
         debug_mode = False
         auto_stop = False
         
@@ -221,7 +221,7 @@ class NightmareApp:
             self.show_messagebox("偷看到了！", f"涅托小姐今天的颜色！\n{msg}")
 
             if auto_stop:
-                self.log("看够了，收工！自动停止偷看...", "info")
+                self.log("看够了，跑路！自动停止偷看...", "info")
                 self.stop_monitor_safe()
         else:
             spot_status = []
@@ -239,9 +239,9 @@ class NightmareApp:
             if debug_mode:
                 self.log(f"今天穿的不是同一条... {', '.join(spot_status)}", "info")
             else:
-                self.log(f"捕获到 startMission，色号不匹配: {', '.join(spot_status)}", "info")
+                self.log(f"捕获到底裤startMission，色号不匹配: {', '.join(spot_status)}", "info")
 
-    # ---------- 监控线程 ----------
+ 
     def monitor_worker(self):
         port = self.var_port.get()
         try:
@@ -259,7 +259,7 @@ class NightmareApp:
         except Exception as e:
             self.log(f"[Man!] 无人机坠毁了！: {e}", "warn")
         finally:
-            # ✅ 清理代理资源
+       
             if self.proxy_instance:
                 try:
                     self.proxy_instance.stop()
@@ -274,7 +274,7 @@ class NightmareApp:
                     pass
                 self.active_proxy = False
                 
-            # ✅ 只在窗口未关闭时才更新 UI
+          
             if not self.is_closing:
                 try:
                     if self.root.winfo_exists():
@@ -315,7 +315,7 @@ class NightmareApp:
         self.log("[*] 等等，再让我看一眼... 该跑路了！", "info")
 
     def _reset_ui(self):
-        """重置 UI 状态（必须在主线程调用）"""
+    
         if self.is_closing:
             return
         try:
@@ -328,12 +328,11 @@ class NightmareApp:
             pass
 
     def on_close(self):
-        """窗口关闭时的清理操作"""
-        # ✅ 标记窗口正在关闭，阻止所有后续 UI 操作
+
         self.is_closing = True
         self.stop_monitor_flag = True
         
-        # 停止代理
+
         if self.proxy_instance:
             try:
                 self.proxy_instance.stop()
@@ -341,7 +340,7 @@ class NightmareApp:
                 pass
             self.proxy_instance = None
             
-        # 恢复代理设置
+
         if self.active_proxy:
             try:
                 set_windows_proxy(False)
@@ -349,11 +348,11 @@ class NightmareApp:
                 pass
             self.active_proxy = False
             
-        # 等待监控线程结束（最多2秒）
+   
         if self.monitor_thread and self.monitor_thread.is_alive():
             self.monitor_thread.join(timeout=2.0)
             
-        # 销毁窗口
+
         try:
             self.root.destroy()
         except tk.TclError:
