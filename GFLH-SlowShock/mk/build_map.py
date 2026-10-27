@@ -22,6 +22,14 @@ import shutil
 import subprocess
 import sys
 
+# GitHub Actions 的 Windows runner 默认用 cp1252 当 stdout 编码，
+# 下面的中文 print 会直接抛 UnicodeEncodeError，这里统一改成 utf-8。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 MK_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(MK_DIR)
 APP_NAME = "GFLH-SlowShockMap"
@@ -32,15 +40,15 @@ STC_FILES = [
     "daily_mission_group.json", "enemy_character_type.json", "enemy_in_team.json",
     "enemy_standard_attribute.json", "enemy_team.json", "equip.json", "fairy.json",
     "furniture.json", "gift_item.json", "gun.json", "gun_in_ally.json", "item.json",
-    "mission.json", "mission_event.json", "mission_targettrain_enemy.json", "normal_activity.json", "mission_win_type_config.json",
-    "prize.json", "sangvis.json", "sangvis_in_ally.json", "skin.json", "spot.json",
-    "team_ai.json", "theater_area.json",
+    "mission.json", "mission_event.json", "mission_targettrain_enemy.json",
+    "mission_win_type_config.json", "normal_activity.json", "prize.json", "sangvis.json",
+    "sangvis_in_ally.json", "skin.json", "spot.json", "team_ai.json", "theater_area.json",
 ]
 
 TEXT_FILES = [
     "ally_team.json", "building.json", "commander_uniform.json", "enemy_character_type.json",
     "equip.json", "fairy.json", "furniture.json", "gift_item.json", "gun.json", "item.json",
-    "mission.json", "mission_event.json", "mission_targettrain_enemy.json", "normal_activity.json", "mission_win_type_config.json",
+    "mission.json", "mission_win_type_config.json", "mission_targettrain_enemy.json",
     "sangvis.json", "skin.json", "special_spot_config.json", "team_ai.json",
 ]
 
