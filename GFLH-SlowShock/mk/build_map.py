@@ -57,28 +57,28 @@ CATCH_FILES = ["equip_in_ally_info.json", "mission_event_prize_info.json", "tria
 README_TEXT = """GFLH-SlowShockMap
 =================
 
-双击 GFLH-SlowShockMap.exe：程序会在后台起一个本地服务，然后用 WebView2
-（pywebview）打开地图窗口。关掉窗口，程序会自动退出。
+双击 GFLH-SlowShockMap.exe：程序将在后台唤起本地服务，而后使用 WebView2
+（pywebview）打开地图窗口。关闭窗口，程序将自动退出。
 
-如果 WebView2 窗口因为环境原因起不来，程序会自动退回「Edge/Chrome 应用窗口」，
-再不行就用默认浏览器打开 http://127.0.0.1:8081/ ，服务本身不受影响。
+如果 WebView2 窗口因环境原因不兼容，程序将自动退回「Edge/Chrome 应用窗口」，
+仍然无效则使用默认浏览器打开 http://127.0.0.1:8081/ ，服务本身不受影响。
 
-窗口右下角有「抓包监控」面板：开始 / 停止 / 退出。
-（用普通静态服务器打开页面时不会出现这个面板，所以在浏览器里直接看地图也没问题。）
+窗口右下角为「监控」面板：开始 / 停止 / 退出。
+（用普通静态服务器打开页面时不会出现该面板）
 
 抓包说明
 --------
-点击「开始」会启动 gflzirc 的 MITM 代理（127.0.0.1:8080）并设置系统代理，
-首次使用需要在游戏里重新登录一次，代理才能拿到动态密钥。
+点击「开始」将启动（127.0.0.1:8080）并设置系统代理，
+首次使用需要在游戏里重新登录一次，代理才能获取Sign Key。
 停止或退出时会自动还原系统代理。
-同一时间只能有一个工具占用 8080，请先关掉其他 GFLH 工具。
+同一时间只能有一个工具占用 8080 端口。
 
 数据
 ----
-优先读取本目录下的 GFLData\\ch（离线）；没有就从 GitHub 拉取。
-想离线使用，把完整的 GFLData 文件夹放到本目录即可。
+优先读取本目录下的 GFLData\\ch（离线）；若无则从 GitHub 拉取。
+若需要离线使用，将完整的 GFLData 文件夹放到本目录即可。
 
-看别的图
+其他地图
 --------
 程序默认打开 #campaign=3058&mission=11403（慢休克-自画像-厚涂），
 在页面顶部的「战役/地图」下拉里可以直接切换。
@@ -152,7 +152,7 @@ def main():
     parser.add_argument("--out", default=os.path.join(ROOT_DIR, "dist"), help="输出目录")
     parser.add_argument("--no-data", action="store_true", help="不打包 GFLData（运行时联网取数据）")
     parser.add_argument("--keep-build", action="store_true", help="保留 PyInstaller 的 build 目录")
-    parser.add_argument("--console", action="store_true", help="保留控制台窗口（调试打包问题时用）")
+    parser.add_argument("--console", action="store_true", help="保留控制台窗口（调试打包问题时使用）")
     args = parser.parse_args()
 
     out_dir = os.path.abspath(args.out)
