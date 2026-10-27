@@ -1,4 +1,4 @@
-# GFLH-FriendPraise
+﻿# GFLH-FriendPraise
 
 每日好友互动工具，tkinter GUI：**访问 / 点赞 / 载具访问 / 载具维护**。
 

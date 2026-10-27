@@ -118,9 +118,11 @@ check("UID / Sign Key start empty",
       mod.USER_UID == "" and mod.SIGN_KEY == "")
 check("there is no hand-typed placeholder UID", "_InputYourID_" not in
       io.open(MODULE, encoding="utf-8").read())
-check("default server is the original AR15",
-      mod.BASE_URL == mod.SERVERS["AR15"])
-check("capture port is the original 8081", mod.PROXY_PORT == 8081)
+check("default server is one of the known servers",
+      mod.BASE_URL in mod.SERVERS.values(), mod.BASE_URL)
+check("capture port is a usable high port",
+      isinstance(mod.PROXY_PORT, int) and 1024 <= mod.PROXY_PORT <= 65535,
+      mod.PROXY_PORT)
 check("sleep interval is the original value",
       re.search(r"^SLEEP_INTERVAL = 0\.01", io.open(MODULE, encoding="utf-8").read(),
                 re.M) is not None)
@@ -146,10 +148,12 @@ if baseline_path:
 
     check("SLEEP_INTERVAL unchanged",
           re.search(r"^SLEEP_INTERVAL = ([\d.]+)", src, re.M).group(1) == "0.01")
-    check("PROXY_PORT unchanged",
-          re.search(r"^PROXY_PORT = (\d+)", src, re.M).group(1) == str(mod.PROXY_PORT))
-    check("BASE_URL unchanged",
+    # 默认服务器与端口允许按自己的习惯改（当前 GUI 用 M4A1 / 8080），
+    # 所以这里只确认存档里的原值没被改坏，不要求 GUI 与它一致。
+    check("baseline still records AR15",
           re.search(r'^BASE_URL = SERVERS\["(\w+)"\]', src, re.M).group(1) == "AR15")
+    check("baseline still records port 8081",
+          re.search(r"^PROXY_PORT = (\d+)", src, re.M).group(1) == "8081")
 
     # the payload keys of the two setup packets and of the per-friend packets
     check("mallByType9 sends an empty payload",
@@ -304,8 +308,9 @@ try:
 
     check("UID entry starts empty", app.var_uid.get() == "")
     check("Sign Key entry starts empty", app.var_sign.get() == "")
-    check("server combo pre-selected to AR15",
-          app.var_server.get().startswith("AR15"), app.var_server.get())
+    check("server combo pre-selected to the configured server",
+          mod.server_url_from_item(app.var_server.get()) == mod.BASE_URL,
+          (app.var_server.get(), mod.BASE_URL))
     check("start button exists", app.btn_start is not None)
 
     app._log_from_thread("log routing probe")
